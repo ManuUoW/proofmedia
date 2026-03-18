@@ -43,13 +43,13 @@ export default function Dashboard() {
               {stats.chainValid ? "Chain Valid" : "Chain Error"}
             </Badge>
           )}
-          {stats?.polygon && (
+          {stats?.bitcoin && (
             <Badge
-              variant={stats.polygon.active ? "default" : "outline"}
-              className={`text-[10px] px-2 py-0.5 ${stats.polygon.active ? "bg-violet-600 hover:bg-violet-700" : ""}`}
-              data-testid="badge-polygon-status"
+              variant={stats.bitcoin.available ? "default" : "outline"}
+              className={`text-[10px] px-2 py-0.5 ${stats.bitcoin.available ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+              data-testid="badge-bitcoin-status"
             >
-              {stats.polygon.active ? "Polygon Live" : "Polygon Ready"}
+              {stats.bitcoin.available ? `₿ ${stats.bitcoin.confirmed} confirmed` : "Bitcoin Ready"}
             </Badge>
           )}
         </div>
@@ -104,7 +104,7 @@ export default function Dashboard() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             Every capture is analyzed through EXIF metadata, frequency analysis, PRNU sensor fingerprinting, 
             screen recapture detection, and environmental consistency — ensuring only authentic, 
-            live camera captures are registered on-chain.
+            live camera captures are anchored to Bitcoin.
           </p>
         </CardContent>
       </Card>

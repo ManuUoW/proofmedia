@@ -10,8 +10,16 @@ import { CopyableHash } from "@/components/CopyableHash";
 import { MediaThumbnail } from "@/components/MediaViewer";
 import {
   Search, CheckCircle2, XCircle, Shield, MapPin, Blocks,
-  Clock, Hash, Fingerprint, Loader2, Image as ImageIcon
+  Clock, Hash, Fingerprint, Loader2, Image as ImageIcon, Download
 } from "lucide-react";
+
+interface BitcoinVerification {
+  verified: boolean;
+  status: "confirmed" | "pending" | "not_found";
+  bitcoinBlock?: number;
+  bitcoinTimestamp?: number;
+  message: string;
+}
 
 interface VerifyResult {
   verified: boolean;
@@ -19,6 +27,7 @@ interface VerifyResult {
   proof: any;
   locationMatch: any;
   verification: any;
+  bitcoin?: BitcoinVerification | null;
 }
 
 export default function Verify() {
@@ -120,8 +129,8 @@ export default function Verify() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {result.verified
-                      ? "This content has a valid proof on the blockchain"
-                      : "No matching proof found in the chain"}
+                      ? "This content has a valid proof anchored to Bitcoin"
+                      : "No matching proof found"}
                   </p>
                 </div>
               </div>
@@ -189,6 +198,34 @@ export default function Verify() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Bitcoin Timestamp Status */}
+              {result.bitcoin && (
+                <Card className="border-orange-500/30 bg-orange-500/5">
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">₿</span>
+                      <h3 className="text-sm font-semibold text-orange-600 dark:text-orange-400">Bitcoin Timestamp</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{result.bitcoin.message}</p>
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-2 h-2 rounded-full ${result.bitcoin.status === "confirmed" ? "bg-green-500" : result.bitcoin.status === "pending" ? "bg-orange-400 animate-pulse" : "bg-muted"}`} />
+                      <span className="text-[10px] font-medium">
+                        {result.bitcoin.status === "confirmed"
+                          ? `Confirmed on Bitcoin block #${result.bitcoin.bitcoinBlock}`
+                          : result.bitcoin.status === "pending"
+                          ? "Pending Bitcoin confirmation (1-4 hours)"
+                          : "Not timestamped"}
+                      </span>
+                    </div>
+                    {result.bitcoin.status === "confirmed" && result.bitcoin.bitcoinTimestamp && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Bitcoin block time: {new Date(result.bitcoin.bitcoinTimestamp * 1000).toLocaleString()}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Proof details with copyable hashes */}
               <Card>

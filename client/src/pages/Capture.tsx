@@ -37,7 +37,7 @@ interface CaptureResult {
   };
   block?: any;
   hashes?: any;
-  polygonTx?: { txHash: string; explorerUrl: string } | null;
+  bitcoin?: { success: boolean; status: string; message: string } | null;
   error?: string;
   message?: string;
 }
@@ -563,19 +563,20 @@ export default function Capture() {
             </Card>
           )}
 
-          {result.polygonTx && (
-            <Card className="border-violet-500/30 bg-violet-500/5">
+          {result.bitcoin && result.bitcoin.success && (
+            <Card className="border-orange-500/30 bg-orange-500/5">
               <CardContent className="p-4 space-y-2">
-                <h3 className="text-sm font-semibold text-violet-600 dark:text-violet-400">Polygon On-Chain</h3>
-                <InfoRowCopyable label="Tx Hash" value={result.polygonTx.txHash} />
-                <a
-                  href={result.polygonTx.explorerUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-xs text-violet-600 dark:text-violet-400 underline"
-                >
-                  View on PolygonScan →
-                </a>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">₿</span>
+                  <h3 className="text-sm font-semibold text-orange-600 dark:text-orange-400">Bitcoin Timestamp</h3>
+                </div>
+                <p className="text-xs text-muted-foreground">{result.bitcoin.message}</p>
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${result.bitcoin.status === "confirmed" ? "bg-green-500" : "bg-orange-400 animate-pulse"}`} />
+                  <span className="text-[10px] font-medium">
+                    {result.bitcoin.status === "confirmed" ? "Confirmed on Bitcoin" : "Pending Bitcoin confirmation (1-4 hours)"}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           )}

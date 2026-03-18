@@ -14,12 +14,10 @@ import {
   geohashDistance,
 } from "./blockchain";
 import { runDetectionPipeline } from "./ai-detection";
-import { isPolygonActive, getPolygonInfo, registerProofOnChain, verifyProofOnChain } from "./polygon";
+import { stampHash, verifyHash, getOTSStatus, getOTSInfo, getOTSProof, upgradeTimestamp, isOTSAvailable } from "./opentimestamps";
 
 // In-memory video storage (maps proof ID to video data URL)
 const videoStore = new Map<string, string>();
-// Maps proof ID to polygon tx info
-const polygonTxStore = new Map<string, { txHash: string; explorerUrl: string }>();
 
 export async function registerRoutes(
   httpServer: Server,
@@ -33,8 +31,8 @@ export async function registerRoutes(
   app.get("/api/stats", async (_req, res) => {
     const stats = await storage.getStats();
     const chainStatus = await validateChain();
-    const polygonInfo = getPolygonInfo();
-    res.json({ ...stats, chainValid: chainStatus.valid, chainErrors: chainStatus.errors, polygon: polygonInfo });
+    const otsInfo = getOTSInfo();
+    res.json({ ...stats, chainValid: chainStatus.valid, chainErrors: chainStatus.errors, bitcoin: otsInfo });
   });
 
   // ---- Users / KYC ----
@@ -224,21 +222,10 @@ export async function registerRoutes(
       // Mine block (local chain)
       const block = await mineBlock([proof.id]);
 
-      // Also register on Polygon if configured
-      let polygonTx: { txHash: string; explorerUrl: string } | null = null;
-      if (isPolygonActive()) {
-        polygonTx = await registerProofOnChain({
-          contentHash,
-          metadataHash,
-          locationHash,
-          geohash,
-          authenticityScore: detection.overallScore,
-          ipfsCid,
-          uploaderWallet: user.walletAddress,
-        });
-        if (polygonTx) {
-          polygonTxStore.set(proof.id, polygonTx);
-        }
+      // Submit hash to Bitcoin via OpenTimestamps (free, async)
+      let bitcoinStatus: { success: boolean; status: string; message: string } | null = null;
+      if (isOTSAvailable()) {
+        bitcoinStatus = await stampHash(proof.id, contentHash);
       }
 
       // Get updated proof
@@ -247,7 +234,7 @@ export async function registerRoutes(
       res.status(201).json({
         proof: updatedProof,
         hasVideo: !!videoData,
-        polygonTx,
+        bitcoin: bitcoinStatus,
         detection: {
           authentic: true,
           overallScore: detection.overallScore,
@@ -322,12 +309,19 @@ export async function registerRoutes(
         timestamp: new Date().toISOString(),
       });
 
+      // Check Bitcoin timestamp status
+      let bitcoinVerification = null;
+      if (proof) {
+        bitcoinVerification = await verifyHash(contentHash);
+      }
+
       res.json({
         verified: !!proof,
         contentHash,
         proof: proof || null,
         locationMatch,
         verification,
+        bitcoin: bitcoinVerification,
       });
     } catch (err: any) {
       console.error("Verify error:", err);
@@ -383,14 +377,31 @@ export async function registerRoutes(
     res.json(result);
   });
 
-  // ---- Polygon Network Info ----
-  app.get("/api/polygon/info", (_req, res) => {
-    res.json(getPolygonInfo());
+  // ---- Bitcoin / OpenTimestamps ----
+  app.get("/api/bitcoin/info", (_req, res) => {
+    res.json(getOTSInfo());
   });
 
-  app.get("/api/polygon/tx/:proofId", (req, res) => {
-    const tx = polygonTxStore.get(req.params.proofId);
-    res.json(tx || { txHash: null, explorerUrl: null });
+  app.get("/api/bitcoin/status/:proofId", async (req, res) => {
+    // Try to upgrade (check if confirmed on Bitcoin)
+    const upgraded = await upgradeTimestamp(req.params.proofId);
+    const status = getOTSStatus(req.params.proofId);
+    res.json(status);
+  });
+
+  app.get("/api/bitcoin/proof/:proofId", (req, res) => {
+    const proof = getOTSProof(req.params.proofId);
+    if (!proof) return res.status(404).json({ error: "No OTS proof found" });
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${req.params.proofId}.ots"`);
+    res.send(proof);
+  });
+
+  app.post("/api/bitcoin/verify", async (req, res) => {
+    const { contentHash } = req.body;
+    if (!contentHash) return res.status(400).json({ error: "contentHash required" });
+    const result = await verifyHash(contentHash);
+    res.json(result);
   });
 
   // ---- Verifications History ----
