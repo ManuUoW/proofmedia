@@ -179,11 +179,14 @@ export default function Capture() {
     setLocationError(null);
 
     if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by your device");
+      setLocationError("Geolocation is not supported by your device.");
       setStep("idle");
       return;
     }
 
+    // On iOS Safari, if the user previously denied permission, the prompt won't
+    // appear again — the error callback fires instantly with code 1.
+    // We detect that and give the user clear instructions to fix it.
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
@@ -195,11 +198,21 @@ export default function Capture() {
         });
       },
       (err) => {
-        setLocationError(
-          err.code === 1 ? "Location permission denied. Please enable GPS."
-            : err.code === 2 ? "Location unavailable. Check your GPS settings."
-            : "Location request timed out. Please try again."
-        );
+        if (err.code === 1) {
+          // Permission denied — on iOS this means the user tapped "Don't Allow"
+          // previously, or Location Services are off for Safari.
+          setLocationError(
+            "Location permission was denied. To fix this on iPhone:\n" +
+            "1. Open Settings → Privacy & Security → Location Services\n" +
+            "2. Make sure Location Services is ON\n" +
+            "3. Scroll down to Safari Websites → set to \"While Using\"\n" +
+            "4. Come back here and tap the button again"
+          );
+        } else if (err.code === 2) {
+          setLocationError("Location unavailable. Make sure GPS is enabled in Settings → Privacy & Security → Location Services.");
+        } else {
+          setLocationError("Location request timed out. Please make sure you're in an area with GPS signal and try again.");
+        }
         setStep("idle");
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -376,7 +389,7 @@ export default function Capture() {
               {locationError && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                   <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-xs text-destructive">{locationError}</p>
+                  <p className="text-xs text-destructive whitespace-pre-line">{locationError}</p>
                 </div>
               )}
 
