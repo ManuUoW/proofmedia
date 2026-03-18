@@ -52,3 +52,4 @@ npm run dev
 For Polygon on-chain registration:
 - `POLYGON_PRIVATE_KEY` — Wallet private key for Polygon Amoy
 - `POLYGON_CONTRACT_ADDRESS` — Deployed MediaProof.sol contract address
+
